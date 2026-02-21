@@ -1,0 +1,43 @@
+name: Sync Workflows
+on:
+  push:
+    paths:
+      - ".github/workflows/**.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gh-aw CLI
+        run: gh extension install github/gh-aw
+
+      - name: Compile and add guards
+        run: |
+          gh aw compile
+          
+          # Inject 'if' conditions to skip agents without secrets.
+          if [ -f .github/workflows/self-heal-claude.lock.yml ]; then
+            sed -i 's/runs-on: ubuntu-latest/runs-on: ubuntu-latest\n    if: ${{ secrets.ANTHROPIC_API_KEY }}/g' .github/workflows/self-heal-claude.lock.yml
+          fi
+          
+          if [ -f .github/workflows/self-heal-copilot.lock.yml ]; then
+            sed -i 's/runs-on: ubuntu-latest/runs-on: ubuntu-latest\n    if: ${{ secrets.COPILOT_GITHUB_TOKEN }}/g' .github/workflows/self-heal-copilot.lock.yml
+          fi
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/*.lock.yml
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: sync agentic workflows [skip ci]"
+            git push
+          else
+            echo "No changes to sync"
+          fi

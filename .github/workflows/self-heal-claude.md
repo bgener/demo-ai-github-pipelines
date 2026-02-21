@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
+  workflow_dispatch:
 permissions:
   contents: read
   actions: read
@@ -15,7 +16,7 @@ safe-outputs:
     expires: 7
 ---
 
-# Self-Healing: Fix Failed CI
+# Self-Healing: Fix Failed CI (Claude Edition)
 
 You are a senior .NET and DevOps engineer. A CI run has just failed.
 
