@@ -1,0 +1,92 @@
+name: CI
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore & Build
+        run: dotnet build --configuration Release
+
+      - name: Test
+        id: test
+        run: |
+          dotnet test --no-build --configuration Release \
+            --logger "trx;LogFileName=results.trx" \
+            --logger "console;verbosity=detailed" \
+            2>&1 | tee test-output.txt
+        continue-on-error: true
+
+      - name: Upload test evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            **/test-output.txt
+            **/results.trx
+          retention-days: 7
+
+      - name: Fail if tests failed
+        if: steps.test.outcome == 'failure'
+        run: exit 1
+
+  deploy-to-kind:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create KinD cluster
+        uses: helm/kind-action@v1
+
+      - name: Build Docker image
+        run: docker build -t orders-api:latest -f Dockerfile .
+
+      - name: Load image into KinD
+        run: kind load docker-image orders-api:latest
+
+      - name: Deploy with Helm
+        id: helm
+        run: |
+          helm upgrade --install orders-api ./deploy/helm \
+            --wait --timeout 2m \
+            2>&1 | tee helm-output.txt
+        continue-on-error: true
+
+      - name: Capture Kubernetes state
+        if: steps.helm.outcome == 'failure'
+        run: |
+          echo "=== Pod Status ===" > k8s-debug.txt
+          kubectl get pods -o wide >> k8s-debug.txt
+          echo "=== Pod Description ===" >> k8s-debug.txt
+          kubectl describe pods >> k8s-debug.txt
+          echo "=== Pod Logs ===" >> k8s-debug.txt
+          kubectl logs -l app=orders-api --tail=50 >> k8s-debug.txt 2>&1
+          echo "=== Events ===" >> k8s-debug.txt
+          kubectl get events --sort-by='.lastTimestamp' >> k8s-debug.txt
+
+      - name: Upload deploy evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deploy-results
+          path: |
+            helm-output.txt
+            k8s-debug.txt
+          retention-days: 7
+
+      - name: Fail if deploy failed
+        if: steps.helm.outcome == 'failure'
+        run: exit 1

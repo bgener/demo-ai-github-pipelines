@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: orders-api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 80        # BUG: .NET 10 listens on 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80                 # BUG: nothing listening on port 80
+            initialDelaySeconds: 5
+            periodSeconds: 3
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
