@@ -25,13 +25,9 @@ jobs:
         run: |
           gh aw compile
           
-          # Inject 'if' conditions to skip agents without secrets.
-          if [ -f .github/workflows/self-heal-claude.lock.yml ]; then
-            sed -i 's/runs-on: ubuntu-latest/runs-on: ubuntu-latest\n    if: ${{ secrets.ANTHROPIC_API_KEY }}/g' .github/workflows/self-heal-claude.lock.yml
-          fi
-          
-          if [ -f .github/workflows/self-heal-copilot.lock.yml ]; then
-            sed -i 's/runs-on: ubuntu-latest/runs-on: ubuntu-latest\n    if: ${{ secrets.COPILOT_GITHUB_TOKEN }}/g' .github/workflows/self-heal-copilot.lock.yml
+          # Inject 'if' condition to skip agent if secret is missing
+          if [ -f .github/workflows/self-heal.lock.yml ]; then
+            sed -i 's/runs-on: ubuntu-latest/runs-on: ubuntu-latest\n    if: ${{ secrets.COPILOT_GITHUB_TOKEN || secrets.ANTHROPIC_API_KEY }}/g' .github/workflows/self-heal.lock.yml
           fi
 
       - name: Commit and push changes
