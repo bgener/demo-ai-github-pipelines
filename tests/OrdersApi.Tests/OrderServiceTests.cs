@@ -12,7 +12,9 @@ public class OrderServiceTests
     {
         var order = new Order(200m, 2, new Customer("Alice", "gold"));
         var result = _sut.CalculateDiscount(order);
-        Assert.Equal(30.0m, result); // 200 * 0.15
+
+        //TEST:  introduce bug to see if self-healing can fix it
+        Assert.Equal(330.0m, result); // 200 * 0.15
     }
 
     [Fact]
