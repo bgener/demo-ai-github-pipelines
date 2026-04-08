@@ -9,12 +9,13 @@ permissions:
   contents: read
   actions: read
 safe-outputs:
+  add-reviewer:
+    reviewers: [copilot]
   create-pull-request:
     title-prefix: "fix: "
     labels: [ai-fix, self-healing]
     draft: true
     expires: 7
-    reviewers: [copilot]
 ---
 
 # Self-Healing: Fix Failed CI
